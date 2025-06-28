@@ -180,8 +180,19 @@ namespace GoogleLoginApi.Services
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            modelBuilder.Entity<User>(entity =>
+          foreach (var entity in modelBuilder.Model.GetEntityTypes())
+          {
+            // Optional: Set table name to lowercase/snake_case
+            entity.SetTableName(entity.GetTableName().ToLower());
+
+            foreach (var property in entity.GetProperties())
             {
+              property.SetColumnName(property.Name.ToLower());
+            }
+          }
+      modelBuilder.Entity<User>(entity =>
+            {
+                entity.ToTable("users"); // Explicitly set table name
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Id).UseIdentityColumn();
                 entity.Property(e => e.Email).IsRequired().HasMaxLength(255);

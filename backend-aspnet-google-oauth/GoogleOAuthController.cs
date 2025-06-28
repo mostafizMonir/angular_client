@@ -118,7 +118,8 @@ namespace GoogleLoginApi.Controllers
             try
             {
 
-               _logger.LogInformation("Google call back: {Code}", code);
+               _logger.LogInformation("Google call back code: {Code}", code);
+               _logger.LogInformation("Google call back state: {state}", state);
 
                 if (string.IsNullOrEmpty(code))
                 {
