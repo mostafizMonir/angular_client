@@ -1,0 +1,91 @@
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:latest
+    container_name: google-oauth-postgres
+    environment:
+      - POSTGRES_DB=YourApiDb
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    ports:
+      - "5455:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - google-oauth-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d YourApiDb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # Seq Logging Server
+  seq:
+    image: datalust/seq:latest
+    container_name: google-oauth-seq
+    environment:
+      - ACCEPT_EULA=Y
+    ports:
+      - "5341:80"
+      - "5342:5341"
+    volumes:
+      - seq_data:/data
+    networks:
+      - google-oauth-network
+    restart: unless-stopped
+
+  # ASP.NET Core Web API
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: google-oauth-api
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:80
+      - ConnectionStrings__DefaultConnection=Host=postgres;Database=YourApiDb;Username=postgres;Password=postgres
+      - Google__ClientId=${GOOGLE_CLIENT_ID:-337852672726-up9sann672uact89rss4t73h6eksspnn.apps.googleusercontent.com}
+      - Google__ClientSecret=${GOOGLE_CLIENT_SECRET:-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}
+      - Google__RedirectUri=${GOOGLE_REDIRECT_URI:-http://localhost:7002/api/UserLogin/google-callback}
+      - Jwt__SecretKey=${JWT_SECRET_KEY:-your-super-secret-jwt-key-here-make-it-long-and-secure-at-least-32-characters}
+      - Jwt__Issuer=${JWT_ISSUER:-your-api-issuer}
+      - Jwt__Audience=${JWT_AUDIENCE:-your-api-audience}
+      - Jwt__ExpirationMinutes=${JWT_EXPIRATION_MINUTES:-60}
+    ports:
+      - "7002:80"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      seq:
+        condition: service_started
+    networks:
+      - google-oauth-network
+    volumes:
+      - ./appsettings.json:/app/appsettings.json:ro
+    restart: unless-stopped
+
+  # Optional: pgAdmin for PostgreSQL management
+  # Uncomment if you want a web-based PostgreSQL client
+  # pgadmin:
+  #   image: dpage/pgadmin4:latest
+  #   container_name: google-oauth-pgadmin
+  #   environment:
+  #     - PGADMIN_DEFAULT_EMAIL=admin@admin.com
+  #     - PGADMIN_DEFAULT_PASSWORD=admin
+  #   ports:
+  #     - "8080:80"
+  #   depends_on:
+  #     - postgres
+  #   networks:
+  #     - google-oauth-network
+
+volumes:
+  postgres_data:
+    driver: local
+  seq_data:
+    driver: local
+
+networks:
+  google-oauth-network:
+    driver: bridge 
